@@ -13,13 +13,14 @@ import { AnalysisHistory } from './components/AnalysisHistory';
 import { HistoryIcon } from './components/icons/HistoryIcon';
 import { auth, googleProvider, isFirebaseConfigured } from './services/firebase';
 import { ConfigErrorPage } from './components/ConfigErrorPage';
+import { GEMINI_API_KEY } from './utils/env';
 
 
 // This is required for jsPDF and html2canvas to be available globally from the CDN
 declare const jspdf: any;
 declare const html2canvas: any;
 
-const isGeminiConfigured = !!process.env.API_KEY;
+const isGeminiConfigured = !!GEMINI_API_KEY;
 
 
 export default function App() {

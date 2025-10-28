@@ -1,14 +1,15 @@
 
 import { GoogleGenAI, Type, Chat, GenerateContentResponse } from "@google/genai";
 import { AnalysisResult } from '../types';
+import { GEMINI_API_KEY } from '../utils/env';
 
 function getAiClient() {
-    if (!process.env.API_KEY) {
+    if (!GEMINI_API_KEY) {
         // This should not be reached if the ConfigErrorPage in App.tsx is working,
         // but it acts as a safeguard.
         throw new Error("Gemini API key is not configured.");
     }
-    return new GoogleGenAI({ apiKey: process.env.API_KEY });
+    return new GoogleGenAI({ apiKey: GEMINI_API_KEY });
 }
 
 export async function analyzeContent(contentText: string): Promise<AnalysisResult> {

@@ -36,7 +36,7 @@ export const ConfigErrorPage: React.FC<ConfigErrorPageProps> = ({ missingKeys })
                   In your Netlify project, go to <span className="font-mono bg-slate-700 p-1 rounded">Site configuration &gt; Environment variables</span>.
                 </li>
                 <li>
-                  Add a new variable with the key <code className="font-mono bg-slate-700 p-1 rounded">API_KEY</code> and paste your key as the value.
+                  Add a new variable with the key <code className="font-mono bg-slate-700 p-1 rounded">VITE_API_KEY</code> and paste your key as the value.
                 </li>
                 <li>
                   <strong>Redeploy your site</strong> to apply the new environment variable.
@@ -61,12 +61,12 @@ export const ConfigErrorPage: React.FC<ConfigErrorPageProps> = ({ missingKeys })
                 <li>
                   In Netlify, add the following environment variables with their corresponding values from Firebase:
                   <ul className="list-disc list-inside mt-2 pl-4 space-y-1">
-                    <li><code className="font-mono bg-slate-700 p-1 rounded">FIREBASE_API_KEY</code></li>
-                    <li><code className="font-mono bg-slate-700 p-1 rounded">FIREBASE_AUTH_DOMAIN</code></li>
-                    <li><code className="font-mono bg-slate-700 p-1 rounded">FIREBASE_PROJECT_ID</code></li>
-                    <li><code className="font-mono bg-slate-700 p-1 rounded">FIREBASE_STORAGE_BUCKET</code></li>
-                    <li><code className="font-mono bg-slate-700 p-1 rounded">FIREBASE_MESSAGING_SENDER_ID</code></li>
-                    <li><code className="font-mono bg-slate-700 p-1 rounded">FIREBASE_APP_ID</code></li>
+                    <li><code className="font-mono bg-slate-700 p-1 rounded">VITE_FIREBASE_API_KEY</code></li>
+                    <li><code className="font-mono bg-slate-700 p-1 rounded">VITE_FIREBASE_AUTH_DOMAIN</code></li>
+                    <li><code className="font-mono bg-slate-700 p-1 rounded">VITE_FIREBASE_PROJECT_ID</code></li>
+                    <li><code className="font-mono bg-slate-700 p-1 rounded">VITE_FIREBASE_STORAGE_BUCKET</code></li>
+                    <li><code className="font-mono bg-slate-700 p-1 rounded">VITE_FIREBASE_MESSAGING_SENDER_ID</code></li>
+                    <li><code className="font-mono bg-slate-700 p-1 rounded">VITE_FIREBASE_APP_ID</code></li>
                   </ul>
                 </li>
                  <li>
