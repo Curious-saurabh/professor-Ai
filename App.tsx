@@ -84,8 +84,14 @@ export default function App() {
     if (isFirebaseConfigured && auth) {
       // First, process the potential redirect result from Google Sign-In
       auth.getRedirectResult().catch((error: any) => {
-        console.error("Firebase redirect login failed:", error);
-        setError(`Failed to sign in with Google. Reason: ${error.message}`);
+        // This error is expected in sandboxed environments where redirects are blocked.
+        // We can safely ignore it because the login button's handler will use a fallback.
+        if (error.code === 'auth/operation-not-supported-in-this-environment') {
+          console.warn("Firebase getRedirectResult failed: Operation not supported in this environment. This is expected in sandboxed iframes.");
+        } else {
+          console.error("Firebase redirect login failed:", error);
+          setError(`Failed to sign in with Google. Reason: ${error.message}`);
+        }
       });
       
       // onAuthStateChanged is the primary observer for auth state.
@@ -202,8 +208,21 @@ export default function App() {
       setAnalysisHistory(prevHistory => [newSession, ...prevHistory]);
 
     } catch (err) {
-      console.error(err);
-      setError('An error occurred while analyzing the content. Please try again.');
+      console.error("Analysis failed:", err);
+      let errorMessage = 'An error occurred while analyzing the content. Please try again.';
+      if (err instanceof Error) {
+        const lowerCaseMessage = err.message.toLowerCase();
+        if (lowerCaseMessage.includes("api_key") || lowerCaseMessage.includes("api key not valid")) {
+          errorMessage = "The Gemini API Key is not configured correctly or is invalid. If you are the owner of this site, please check your environment variables.";
+        } else if (lowerCaseMessage.includes("billing")) {
+          errorMessage = "Billing is not enabled for the Google Cloud project associated with the API key. The site owner needs to enable billing to use this feature.";
+        } else if (lowerCaseMessage.includes("quota")) {
+          errorMessage = "The application has exceeded its API quota. Please try again later.";
+        } else if (lowerCaseMessage.includes("location is not supported")) {
+          errorMessage = "The AI model is not available in the region where your request is being made from. This can sometimes happen with server locations on hosting platforms.";
+        }
+      }
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }

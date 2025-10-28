@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type, Chat } from "@google/genai";
 import { AnalysisResult } from '../types';
 
@@ -89,6 +90,11 @@ export async function analyzeContent(contentText: string): Promise<AnalysisResul
     return parsedResult;
   } catch (error) {
     console.error("Gemini API call failed or JSON parsing failed:", error);
+    // Re-throw the original error to preserve its message and details for better debugging in the UI component.
+    if (error instanceof Error) {
+        throw error;
+    }
+    // Fallback for non-Error objects being thrown
     throw new Error("Failed to get a valid response from the AI model.");
   }
 }

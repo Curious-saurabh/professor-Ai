@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Chat } from '@google/genai';
 import { createProfessorChat } from '../services/geminiService';
@@ -41,7 +42,16 @@ export const ProfessorBot: React.FC<ProfessorBotProps> = ({ isOpen, setIsOpen, c
         if (isOpen) {
             setShowGreeting(false);
             if (!chatSession.current) {
-                chatSession.current = createProfessorChat();
+                try {
+                    chatSession.current = createProfessorChat();
+                } catch (error) {
+                    console.error("Failed to create chat session:", error);
+                     let errorMessage = 'Sorry, I am unable to start at the moment. Please try again later.';
+                     if (error instanceof Error && error.message.toLowerCase().includes('api_key')) {
+                         errorMessage = "I can't start because the API Key seems to be missing or invalid. The site administrator needs to configure this.";
+                     }
+                    setMessages([{ sender: 'bot', text: errorMessage }]);
+                }
             }
             if (contextualQuestion) {
                 setInput(contextualQuestion);
@@ -78,7 +88,25 @@ export const ProfessorBot: React.FC<ProfessorBotProps> = ({ isOpen, setIsOpen, c
             }
         } catch (error) {
             console.error("Chat API call failed:", error);
-            setMessages(prev => [...prev, { sender: 'bot', text: 'Sorry, I encountered an error. Please try again.' }]);
+            let errorMessage = 'Sorry, I encountered an error. Please try again.';
+            if (error instanceof Error) {
+                const lowerCaseMessage = error.message.toLowerCase();
+                if (lowerCaseMessage.includes("api_key") || lowerCaseMessage.includes("api key not valid")) {
+                  errorMessage = "I'm having trouble connecting because the API Key seems to be missing or invalid. The site administrator needs to configure this.";
+                } else if (lowerCaseMessage.includes("billing")) {
+                  errorMessage = "I can't respond right now. It seems billing is not enabled for the API. The site administrator should check the Google Cloud project.";
+                } else if (lowerCaseMessage.includes("quota")) {
+                  errorMessage = "I've been asked too many questions recently and have hit my limit! Please try again later.";
+                }
+            }
+            setMessages(prev => {
+                const newMessages = [...prev];
+                // If the last message was the placeholder "...", remove it before adding the error.
+                if (newMessages.length > 0 && newMessages[newMessages.length - 1].text === '...') {
+                    newMessages.pop();
+                }
+                return [...newMessages, { sender: 'bot', text: errorMessage }];
+            });
         } finally {
             setIsLoading(false);
         }
@@ -120,9 +148,11 @@ export const ProfessorBot: React.FC<ProfessorBotProps> = ({ isOpen, setIsOpen, c
                 <div className="flex-1 overflow-y-auto">
                     {viewMode === 'chat' ? (
                         <div className="p-4 space-y-4">
-                            <div className="p-3 bg-slate-700/50 rounded-lg text-sm text-slate-300">
-                                Hello! I am Professor AI. How can I help you clear your concepts?
-                            </div>
+                            {messages.length === 0 && (
+                                <div className="p-3 bg-slate-700/50 rounded-lg text-sm text-slate-300">
+                                    Hello! I am Professor AI. How can I help you clear your concepts?
+                                </div>
+                            )}
                             {messages.map((msg, index) => (
                                 <div key={index} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
                                     <div className={`max-w-[80%] p-3 rounded-lg text-sm ${msg.sender === 'user' ? 'bg-purple-600 text-white' : 'bg-slate-700 text-slate-200'}`}>
@@ -183,10 +213,10 @@ export const ProfessorBot: React.FC<ProfessorBotProps> = ({ isOpen, setIsOpen, c
                                 value={input}
                                 onChange={(e) => setInput(e.target.value)}
                                 placeholder="Ask a question..."
-                                disabled={isLoading}
+                                disabled={isLoading || !chatSession.current}
                                 className="flex-1 w-full p-3 bg-slate-900 border border-slate-600 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition-all text-slate-300 placeholder-slate-500 disabled:opacity-50"
                             />
-                            <button type="submit" disabled={isLoading || !input.trim()} className="p-3 bg-cyan-500 text-white rounded-full hover:bg-cyan-400 disabled:bg-slate-600 disabled:cursor-not-allowed transition-colors">
+                            <button type="submit" disabled={isLoading || !input.trim() || !chatSession.current} className="p-3 bg-cyan-500 text-white rounded-full hover:bg-cyan-400 disabled:bg-slate-600 disabled:cursor-not-allowed transition-colors">
                                <SendIcon className="w-6 h-6"/>
                             </button>
                         </form>
