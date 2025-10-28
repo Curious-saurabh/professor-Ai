@@ -12,13 +12,24 @@ import { ProfessorAILogo } from './components/icons/ProfessorAILogo';
 import { AnalysisHistory } from './components/AnalysisHistory';
 import { HistoryIcon } from './components/icons/HistoryIcon';
 import { auth, googleProvider, isFirebaseConfigured } from './services/firebase';
+import { ConfigErrorPage } from './components/ConfigErrorPage';
 
 
 // This is required for jsPDF and html2canvas to be available globally from the CDN
 declare const jspdf: any;
 declare const html2canvas: any;
 
+const isGeminiConfigured = !!process.env.API_KEY;
+
+
 export default function App() {
+  // --- Configuration Check ---
+  // If the Gemini key is missing, the app's core functionality is unavailable.
+  // We render a setup guide page for the site owner instead of the main app.
+  if (!isGeminiConfigured) {
+    return <ConfigErrorPage missingKeys={{ gemini: true, firebase: !isFirebaseConfigured }} />;
+  }
+
   const [isSplashScreen, setIsSplashScreen] = useState<boolean>(true);
   const [isAuthLoading, setIsAuthLoading] = useState<boolean>(true);
   const [user, setUser] = useState<User | null>(null);
@@ -168,19 +179,13 @@ export default function App() {
     }
   };
 
-  const handleLogoutOrReset = () => {
+  const handleLogout = () => {
     if (isFirebaseConfigured && auth) {
-      // This is the real logout flow
       auth.signOut().catch((err: any) => {
           console.error("Firebase logout failed:", err);
           setError("An error occurred during sign-out.");
       });
       // onAuthStateChanged will handle clearing state
-    } else {
-      // This is the reset flow for local/guest mode
-      if (window.confirm("Are you sure you want to reset your session? This will clear your current analysis and history.")) {
-          clearUserData();
-      }
     }
   };
 
@@ -330,13 +335,15 @@ export default function App() {
                 <HistoryIcon className="w-6 h-6"/>
               </button>
             )}
-            <button
-              onClick={handleLogoutOrReset}
-              className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white font-semibold rounded-lg transition-colors text-sm"
-              aria-label={isFirebaseConfigured ? "Logout" : "Reset Session"}
-            >
-              {isFirebaseConfigured ? 'Logout' : 'Reset Session'}
-            </button>
+            {isFirebaseConfigured && user?.email && (
+              <button
+                onClick={handleLogout}
+                className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white font-semibold rounded-lg transition-colors text-sm"
+                aria-label="Logout"
+              >
+                Logout
+              </button>
+            )}
           </div>
         </header>
 

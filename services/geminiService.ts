@@ -1,18 +1,20 @@
 
-import { GoogleGenAI, Type, Chat } from "@google/genai";
+import { GoogleGenAI, Type, Chat, GenerateContentResponse } from "@google/genai";
 import { AnalysisResult } from '../types';
 
 function getAiClient() {
     if (!process.env.API_KEY) {
-        throw new Error("API_KEY environment variable not set");
+        // This should not be reached if the ConfigErrorPage in App.tsx is working,
+        // but it acts as a safeguard.
+        throw new Error("Gemini API key is not configured.");
     }
     return new GoogleGenAI({ apiKey: process.env.API_KEY });
 }
 
 export async function analyzeContent(contentText: string): Promise<AnalysisResult> {
-  const ai = getAiClient();
+    const ai = getAiClient();
 
-  const prompt = `
+    const prompt = `
     Analyze the following academic content. Your task is to act as an expert professor.
     1. Identify all the major chapters, units, or main sections.
     2. Within each chapter, identify all important topics or key concepts.
