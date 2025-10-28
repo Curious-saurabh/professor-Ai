@@ -28,6 +28,7 @@ export default function App() {
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [configError, setConfigError] = useState<string | null>(null);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState<boolean>(false);
   const [appView, setAppView] = useState<'main' | 'history'>('main');
 
@@ -127,9 +128,10 @@ export default function App() {
   // --- Auth Handlers ---
   const handleLogin = async () => {
     setError(null);
+    setConfigError(null);
+
     if (isFirebaseConfigured && auth && googleProvider) {
       try {
-        // Use signInWithPopup for a more reliable web login experience, especially on deployed platforms.
         await auth.signInWithPopup(googleProvider);
         // The onAuthStateChanged listener will automatically handle the successful login.
       } catch (err: any) {
@@ -138,29 +140,16 @@ export default function App() {
             // User closed the popup, this is not an error we need to show.
             return;
         } else if (err.code === 'auth/operation-not-supported-in-this-environment') {
-            console.warn("Firebase sign-in with popup is not supported in this sandboxed environment. Falling back to a mock user for demonstration purposes.");
-            setError(null); // Clear any potential error message
-            const mockUser: User = {
-                uid: 'mock-user-uid',
-                name: 'Demo User',
-                email: 'demo@example.com',
-            };
-            setUser(mockUser);
-            loadUserHistory(mockUser.uid);
+            setConfigError("Authentication is not supported in this environment (e.g., a sandboxed iframe). Please try opening the app in a new tab.");
         } else {
             setError("Failed to sign in with Google. Please try again.");
         }
       }
     } else {
-      // MOCK LOGIN FOR DEMO
-      console.log("Firebase not configured, using mock user for demonstration.");
-      const mockUser: User = {
-        uid: 'mock-user-uid',
-        name: 'Demo User',
-        email: 'demo@example.com',
-      };
-      setUser(mockUser);
-      loadUserHistory(mockUser.uid);
+      // Firebase is not configured. Show an error to the user/developer.
+      setConfigError(
+        "Authentication is not configured. If you are the site owner, please set the required FIREBASE_* environment variables in your deployment settings."
+      );
     }
   };
 
@@ -172,7 +161,7 @@ export default function App() {
       });
       // onAuthStateChanged will handle clearing state
     } else {
-      // MOCK LOGOUT
+      // If not configured, just clear local state.
       setUser(null);
       clearUserData();
     }
@@ -300,7 +289,7 @@ export default function App() {
   }
 
   if (!user) {
-    return <LoginPage onLogin={handleLogin} />;
+    return <LoginPage onLogin={handleLogin} configError={configError} />;
   }
 
   return (
