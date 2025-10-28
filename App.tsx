@@ -11,7 +11,7 @@ import { SplashScreen } from './components/SplashScreen';
 import { ProfessorAILogo } from './components/icons/ProfessorAILogo';
 import { AnalysisHistory } from './components/AnalysisHistory';
 import { HistoryIcon } from './components/icons/HistoryIcon';
-import { auth, googleProvider, isFirebaseConfigured, isSignInWithEmailLink, signInWithEmailLink } from './services/firebase';
+import { auth, googleProvider, isFirebaseConfigured } from './services/firebase';
 import { ConfigErrorPage } from './components/ConfigErrorPage';
 import { GEMINI_API_KEY } from './utils/env';
 
@@ -93,30 +93,6 @@ export default function App() {
 
   useEffect(() => {
     if (isFirebaseConfigured && auth) {
-        // Handle Email Link Sign-in
-        if (isSignInWithEmailLink && isSignInWithEmailLink(auth, window.location.href)) {
-            let email = window.localStorage.getItem('emailForSignIn');
-            if (!email) {
-                // User opened the link on a different device. To prevent session fixation
-                // attacks, ask for the email again.
-                email = window.prompt('Please provide your email for confirmation');
-            }
-            if (email) {
-                signInWithEmailLink(auth, email, window.location.href)
-                    .then(() => {
-                        window.localStorage.removeItem('emailForSignIn');
-                        // onAuthStateChanged will handle the rest
-                    })
-                    .catch((err: any) => {
-                        console.error("Email link sign-in failed:", err);
-                        setConfigError("Failed to sign in with email link. It may have expired or already been used.");
-                        setIsAuthLoading(false);
-                    });
-            } else {
-                 setIsAuthLoading(false);
-            }
-        }
-
       const unsubscribe = auth.onAuthStateChanged((firebaseUser: any) => {
         if (firebaseUser) {
           const appUser: User = {
