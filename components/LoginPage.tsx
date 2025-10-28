@@ -6,9 +6,10 @@ import { ProfessorAILogo } from './icons/ProfessorAILogo';
 interface LoginPageProps {
   onLogin: () => void;
   configError?: string | null;
+  error?: string | null;
 }
 
-export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, configError }) => {
+export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, configError, error }) => {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-slate-900 text-slate-100 p-4 font-sans">
       <div className="text-center w-full max-w-md">
@@ -32,6 +33,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, configError }) =>
                 <p className="text-red-400 text-sm mt-2">{configError}</p>
               </div>
             )}
+
+            {error && (
+              <div className="mb-6 p-4 bg-yellow-900/50 border border-yellow-700 rounded-lg text-center">
+                <h3 className="font-bold text-yellow-300">Sign-in Issue</h3>
+                <p className="text-yellow-400 text-sm mt-2">{error}</p>
+              </div>
+            )}
+
 
             <button
                 onClick={onLogin}

@@ -136,13 +136,23 @@ export default function App() {
         // The onAuthStateChanged listener will automatically handle the successful login.
       } catch (err: any) {
         console.error("Firebase popup login failed:", err);
-        if (err.code === 'auth/popup-closed-by-user') {
-            // User closed the popup, this is not an error we need to show.
-            return;
-        } else if (err.code === 'auth/operation-not-supported-in-this-environment') {
-            setConfigError("Authentication is not supported in this environment (e.g., a sandboxed iframe). Please try opening the app in a new tab.");
-        } else {
-            setError("Failed to sign in with Google. Please try again.");
+        switch (err.code) {
+            case 'auth/popup-closed-by-user':
+            case 'auth/cancelled-popup-request':
+                // User cancelled the action, not an error to display.
+                return;
+            case 'auth/operation-not-allowed':
+                setConfigError("Google Sign-in is not enabled for this project. The site owner needs to enable it in the Firebase console (Authentication > Sign-in method).");
+                break;
+            case 'auth/operation-not-supported-in-this-environment':
+                setError("Authentication is not supported in this environment (e.g., a sandboxed iframe). Please try opening the app in a new tab.");
+                break;
+            case 'auth/popup-blocked':
+                setError("The sign-in popup was blocked by your browser. Please allow popups for this site and try again.");
+                break;
+            default:
+                setError("An unexpected error occurred during sign-in. Please try again.");
+                break;
         }
       }
     } else {
@@ -289,7 +299,7 @@ export default function App() {
   }
 
   if (!user) {
-    return <LoginPage onLogin={handleLogin} configError={configError} />;
+    return <LoginPage onLogin={handleLogin} configError={configError} error={error} />;
   }
 
   return (
