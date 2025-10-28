@@ -14,15 +14,16 @@ interface ProfessorBotProps {
     setIsOpen: (isOpen: boolean) => void;
     contextualQuestion: string | null;
     clearContextualQuestion: () => void;
+    chatHistory: ChatSession[];
+    onSaveSession: (messages: ChatMessage[]) => void;
 }
 
-export const ProfessorBot: React.FC<ProfessorBotProps> = ({ isOpen, setIsOpen, contextualQuestion, clearContextualQuestion }) => {
+export const ProfessorBot: React.FC<ProfessorBotProps> = ({ isOpen, setIsOpen, contextualQuestion, clearContextualQuestion, chatHistory, onSaveSession }) => {
     const [showGreeting, setShowGreeting] = useState(false);
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [viewMode, setViewMode] = useState<'chat' | 'history'>('chat');
-    const [chatHistory, setChatHistory] = useState<ChatSession[]>([]);
     const [activeHistoryIndex, setActiveHistoryIndex] = useState<number | null>(null);
 
     const chatSession = useRef<Chat | null>(null);
@@ -30,16 +31,6 @@ export const ProfessorBot: React.FC<ProfessorBotProps> = ({ isOpen, setIsOpen, c
     const inputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
-        try {
-            const savedHistory = localStorage.getItem('professorAiChatHistory');
-            if (savedHistory) {
-                setChatHistory(JSON.parse(savedHistory));
-            }
-        } catch (error) {
-            console.error("Failed to load or parse chat history:", error);
-            localStorage.removeItem('professorAiChatHistory');
-        }
-
         const timer = setTimeout(() => {
             setShowGreeting(true);
         }, 1500);
@@ -94,15 +85,7 @@ export const ProfessorBot: React.FC<ProfessorBotProps> = ({ isOpen, setIsOpen, c
     };
 
     const handleClose = () => {
-        if (messages.length > 0) {
-            const newSession: ChatSession = {
-                timestamp: Date.now(),
-                messages: messages,
-            };
-            const updatedHistory = [newSession, ...chatHistory];
-            setChatHistory(updatedHistory);
-            localStorage.setItem('professorAiChatHistory', JSON.stringify(updatedHistory));
-        }
+        onSaveSession(messages);
         setMessages([]);
         chatSession.current = null;
         setViewMode('chat');

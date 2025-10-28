@@ -3,72 +3,159 @@ import { ContentInput } from './components/SyllabusInput';
 import { ResultsDisplay } from './components/ResultsDisplay';
 import { LoadingSpinner } from './components/LoadingSpinner';
 import { analyzeContent } from './services/geminiService';
-import { AnalysisResult, User, AnalysisSession } from './types';
+import { AnalysisResult, User, AnalysisSession, ChatMessage, ChatSession } from './types';
 import { LoginPage } from './components/LoginPage';
 import { ProfessorBot } from './components/ProfessorBot';
 import { SplashScreen } from './components/SplashScreen';
 import { ProfessorAILogo } from './components/icons/ProfessorAILogo';
 import { AnalysisHistory } from './components/AnalysisHistory';
 import { HistoryIcon } from './components/icons/HistoryIcon';
+import { auth, googleProvider, isFirebaseConfigured } from './services/firebase';
 
 
 // This is required for jsPDF and html2canvas to be available globally from the CDN
 declare const jspdf: any;
 declare const html2canvas: any;
 
-const ANALYSIS_HISTORY_KEY = 'professorAiAnalysisHistory';
-
 export default function App() {
-  const [isAppLoading, setIsAppLoading] = useState<boolean>(true);
+  const [isSplashScreen, setIsSplashScreen] = useState<boolean>(true);
+  const [isAuthLoading, setIsAuthLoading] = useState<boolean>(true);
+  const [user, setUser] = useState<User | null>(null);
+
+  // App State
   const [contentText, setContentText] = useState<string>('');
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState<boolean>(false);
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
-  const [user, setUser] = useState<User | null>(null);
   const [appView, setAppView] = useState<'main' | 'history'>('main');
-  const [analysisHistory, setAnalysisHistory] = useState<AnalysisSession[]>([]);
 
-  // --- Bot State ---
+  // History State
+  const [analysisHistory, setAnalysisHistory] = useState<AnalysisSession[]>([]);
+  const [chatHistory, setChatHistory] = useState<ChatSession[]>([]);
+
+  // Bot State
   const [isBotOpen, setIsBotOpen] = useState<boolean>(false);
   const [contextualQuestion, setContextualQuestion] = useState<string | null>(null);
 
 
-  // --- Splash Screen & History Loading ---
+  // --- Splash Screen & Auth Loading ---
   useEffect(() => {
     const timer = setTimeout(() => {
-      setIsAppLoading(false);
+      setIsSplashScreen(false);
     }, 2500); // Show splash screen for 2.5 seconds
-    
-    try {
-        const savedHistory = localStorage.getItem(ANALYSIS_HISTORY_KEY);
-        if (savedHistory) {
-            setAnalysisHistory(JSON.parse(savedHistory));
-        }
-    } catch (error) {
-        console.error("Failed to load or parse analysis history:", error);
-        localStorage.removeItem(ANALYSIS_HISTORY_KEY);
-    }
-
     return () => clearTimeout(timer);
   }, []);
 
+  const handleReset = useCallback(() => {
+    setContentText('');
+    setAnalysisResult(null);
+    setError(null);
+    setIsLoading(false);
+    setAppView('main');
+  }, []);
+
+  // --- Helpers ---
+  const loadUserHistory = useCallback((uid: string) => {
+    const analysisHistoryKey = `professorAiAnalysisHistory_${uid}`;
+    const chatHistoryKey = `professorAiChatHistory_${uid}`;
+    try {
+      const savedAnalysisHistory = localStorage.getItem(analysisHistoryKey);
+      setAnalysisHistory(savedAnalysisHistory ? JSON.parse(savedAnalysisHistory) : []);
+
+      const savedChatHistory = localStorage.getItem(chatHistoryKey);
+      setChatHistory(savedChatHistory ? JSON.parse(savedChatHistory) : []);
+    } catch (err) {
+      console.error("Failed to load or parse user history:", err);
+      setAnalysisHistory([]);
+      setChatHistory([]);
+    }
+  }, []);
+
+  const clearUserData = useCallback(() => {
+    handleReset(); // Resets main app state
+    setAnalysisHistory([]);
+    setChatHistory([]);
+  }, [handleReset]);
+
+
+  useEffect(() => {
+    if (isFirebaseConfigured && auth) {
+      const unsubscribe = auth.onAuthStateChanged((firebaseUser: any) => {
+        if (firebaseUser) {
+          const appUser: User = {
+            uid: firebaseUser.uid,
+            name: firebaseUser.displayName,
+            email: firebaseUser.email,
+          };
+          setUser(appUser);
+          loadUserHistory(appUser.uid);
+        } else {
+          setUser(null);
+          clearUserData();
+        }
+        setIsAuthLoading(false);
+      });
+      return () => unsubscribe();
+    } else {
+      // If firebase is not configured, we are not waiting for any auth state.
+      setIsAuthLoading(false);
+    }
+  }, [loadUserHistory, clearUserData]);
+
+  // Persist analysis history to localStorage when it changes
+  useEffect(() => {
+    if (user?.uid) {
+      const analysisHistoryKey = `professorAiAnalysisHistory_${user.uid}`;
+      localStorage.setItem(analysisHistoryKey, JSON.stringify(analysisHistory));
+    }
+  }, [analysisHistory, user]);
+
+  // Persist chat history to localStorage when it changes
+  useEffect(() => {
+    if (user?.uid) {
+      const chatHistoryKey = `professorAiChatHistory_${user.uid}`;
+      localStorage.setItem(chatHistoryKey, JSON.stringify(chatHistory));
+    }
+  }, [chatHistory, user]);
+
 
   // --- Auth Handlers ---
-  const handleLogin = () => {
-    setUser({ name: 'Saurabh', email: 'saurabh@example.com' });
-    setIsLoggedIn(true);
+  const handleLogin = async () => {
+    setError(null);
+    if (isFirebaseConfigured && auth && googleProvider) {
+      try {
+        await auth.signInWithPopup(googleProvider);
+        // onAuthStateChanged will handle setting the user state and loading history
+      } catch (err) {
+        console.error("Firebase login failed:", err);
+        setError("Failed to sign in with Google. Please try again.");
+      }
+    } else {
+      // MOCK LOGIN FOR DEMO
+      console.log("Firebase not configured, using mock user for demonstration.");
+      const mockUser: User = {
+        uid: 'mock-user-uid',
+        name: 'Demo User',
+        email: 'demo@example.com',
+      };
+      setUser(mockUser);
+      loadUserHistory(mockUser.uid);
+    }
   };
 
   const handleLogout = () => {
-    setUser(null);
-    setIsLoggedIn(false);
-    handleReset();
-    setAnalysisHistory([]);
-    localStorage.removeItem(ANALYSIS_HISTORY_KEY);
-    localStorage.removeItem('professorAiChatHistory');
-    setAppView('main');
+    if (isFirebaseConfigured && auth) {
+      auth.signOut().catch((err: any) => {
+          console.error("Firebase logout failed:", err);
+          setError("An error occurred during sign-out.");
+      });
+      // onAuthStateChanged will handle clearing state
+    } else {
+      // MOCK LOGOUT
+      setUser(null);
+      clearUserData();
+    }
   };
 
   // --- App Logic Handlers ---
@@ -90,11 +177,7 @@ export default function App() {
         contentText: contentText,
         analysisResult: result,
       };
-      setAnalysisHistory(prevHistory => {
-          const updatedHistory = [newSession, ...prevHistory];
-          localStorage.setItem(ANALYSIS_HISTORY_KEY, JSON.stringify(updatedHistory));
-          return updatedHistory;
-      });
+      setAnalysisHistory(prevHistory => [newSession, ...prevHistory]);
 
     } catch (err) {
       console.error(err);
@@ -139,14 +222,6 @@ export default function App() {
         setIsDownloadingPdf(false);
     });
   }, []);
-  
-  const handleReset = () => {
-    setContentText('');
-    setAnalysisResult(null);
-    setError(null);
-    setIsLoading(false);
-    setAppView('main');
-  };
 
   // --- History Handlers ---
   const handleSelectHistoryItem = (session: AnalysisSession) => {
@@ -156,17 +231,12 @@ export default function App() {
   };
 
   const handleDeleteHistoryItem = (timestamp: number) => {
-    setAnalysisHistory(prevHistory => {
-        const updatedHistory = prevHistory.filter(item => item.timestamp !== timestamp);
-        localStorage.setItem(ANALYSIS_HISTORY_KEY, JSON.stringify(updatedHistory));
-        return updatedHistory;
-    });
+    setAnalysisHistory(prevHistory => prevHistory.filter(item => item.timestamp !== timestamp));
   };
 
   const handleClearAllHistory = () => {
     if (window.confirm("Are you sure you want to delete all analysis history? This cannot be undone.")) {
         setAnalysisHistory([]);
-        localStorage.removeItem(ANALYSIS_HISTORY_KEY);
     }
   };
 
@@ -180,12 +250,23 @@ export default function App() {
     setContextualQuestion(null);
   };
 
+  const handleSaveChatSession = (messages: ChatMessage[]) => {
+      if (messages.length > 0) {
+          const newSession: ChatSession = {
+              timestamp: Date.now(),
+              messages: messages,
+          };
+          setChatHistory(prev => [newSession, ...prev]);
+      }
+  };
+
+  const isAppLoading = isSplashScreen || isAuthLoading;
 
   if (isAppLoading) {
     return <SplashScreen />;
   }
 
-  if (!isLoggedIn) {
+  if (!user) {
     return <LoginPage onLogin={handleLogin} />;
   }
 
@@ -262,6 +343,8 @@ export default function App() {
         setIsOpen={setIsBotOpen}
         contextualQuestion={contextualQuestion}
         clearContextualQuestion={clearContextualQuestion}
+        chatHistory={chatHistory}
+        onSaveSession={handleSaveChatSession}
       />
 
       <footer className="text-center mt-12 text-slate-500 text-sm">
