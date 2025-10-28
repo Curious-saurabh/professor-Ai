@@ -11,7 +11,7 @@ import { SplashScreen } from './components/SplashScreen';
 import { ProfessorAILogo } from './components/icons/ProfessorAILogo';
 import { AnalysisHistory } from './components/AnalysisHistory';
 import { HistoryIcon } from './components/icons/HistoryIcon';
-import { auth, googleProvider, isFirebaseConfigured } from './services/firebase';
+import { auth, googleProvider, isFirebaseConfigured, isSignInWithEmailLink, signInWithEmailLink } from './services/firebase';
 import { ConfigErrorPage } from './components/ConfigErrorPage';
 import { GEMINI_API_KEY } from './utils/env';
 
@@ -25,8 +25,6 @@ const isGeminiConfigured = !!GEMINI_API_KEY;
 
 export default function App() {
   // --- Configuration Check ---
-  // If the Gemini key is missing, the app's core functionality is unavailable.
-  // We render a setup guide page for the site owner instead of the main app.
   if (!isGeminiConfigured) {
     return <ConfigErrorPage missingKeys={{ gemini: true, firebase: !isFirebaseConfigured }} />;
   }
@@ -95,9 +93,30 @@ export default function App() {
 
   useEffect(() => {
     if (isFirebaseConfigured && auth) {
-      // onAuthStateChanged is the primary observer for auth state.
-      // It will fire after a successful popup login, or on initial page load
-      // to check for an existing session.
+        // Handle Email Link Sign-in
+        if (isSignInWithEmailLink && isSignInWithEmailLink(auth, window.location.href)) {
+            let email = window.localStorage.getItem('emailForSignIn');
+            if (!email) {
+                // User opened the link on a different device. To prevent session fixation
+                // attacks, ask for the email again.
+                email = window.prompt('Please provide your email for confirmation');
+            }
+            if (email) {
+                signInWithEmailLink(auth, email, window.location.href)
+                    .then(() => {
+                        window.localStorage.removeItem('emailForSignIn');
+                        // onAuthStateChanged will handle the rest
+                    })
+                    .catch((err: any) => {
+                        console.error("Email link sign-in failed:", err);
+                        setConfigError("Failed to sign in with email link. It may have expired or already been used.");
+                        setIsAuthLoading(false);
+                    });
+            } else {
+                 setIsAuthLoading(false);
+            }
+        }
+
       const unsubscribe = auth.onAuthStateChanged((firebaseUser: any) => {
         if (firebaseUser) {
           const appUser: User = {
@@ -150,30 +169,27 @@ export default function App() {
     setError(null);
     setConfigError(null);
 
-    // This function is only called from the LoginPage, which is only shown when
-    // Firebase is configured and the user is not logged in.
     if (isFirebaseConfigured && auth && googleProvider) {
       try {
         await auth.signInWithPopup(googleProvider);
-        // The onAuthStateChanged listener will automatically handle the successful login.
+        // onAuthStateChanged will handle success
       } catch (err: any) {
         console.error("Firebase popup login failed:", err);
         switch (err.code) {
             case 'auth/popup-closed-by-user':
             case 'auth/cancelled-popup-request':
-                // User cancelled the action, not an error to display.
                 return;
             case 'auth/operation-not-allowed':
-                setConfigError("Google Sign-in is not enabled for this project. The site owner needs to enable it in the Firebase console (Authentication > Sign-in method).");
+                setConfigError("Google Sign-in is not enabled. The site owner needs to enable it in the Firebase console.");
                 break;
             case 'auth/operation-not-supported-in-this-environment':
-                setError("Authentication is not supported in this environment (e.g., a sandboxed iframe). Please try opening the app in a new tab.");
+                setError("Authentication is not supported in this environment. Please try opening the app in a new tab.");
                 break;
             case 'auth/popup-blocked':
-                setError("The sign-in popup was blocked by your browser. Please allow popups for this site and try again.");
+                setError("The sign-in popup was blocked. Please allow popups for this site.");
                 break;
             default:
-                setError("An unexpected error occurred during sign-in. Please try again.");
+                setError("An unexpected error occurred during sign-in.");
                 break;
         }
       }
@@ -186,7 +202,6 @@ export default function App() {
           console.error("Firebase logout failed:", err);
           setError("An error occurred during sign-out.");
       });
-      // onAuthStateChanged will handle clearing state
     }
   };
 
@@ -312,7 +327,7 @@ export default function App() {
   }
 
   if (!user) {
-    return <LoginPage onLogin={handleLogin} configError={configError} error={error} />;
+    return <LoginPage onGoogleLogin={handleLogin} configError={configError} error={error} />;
   }
 
   return (
