@@ -103,7 +103,15 @@ export default function App() {
       });
       return () => unsubscribe();
     } else {
-      // If firebase is not configured, we are not waiting for any auth state.
+      // Firebase is not configured. Create a mock "Guest" user for local development.
+      console.log("Firebase not configured. Running in local/guest mode.");
+      const guestUser: User = {
+        uid: 'local_guest_user',
+        name: 'Guest User',
+        email: null,
+      };
+      setUser(guestUser);
+      loadUserHistory(guestUser.uid);
       setIsAuthLoading(false);
     }
   }, [loadUserHistory, clearUserData]);
@@ -130,6 +138,8 @@ export default function App() {
     setError(null);
     setConfigError(null);
 
+    // This function is only called from the LoginPage, which is only shown when
+    // Firebase is configured and the user is not logged in.
     if (isFirebaseConfigured && auth && googleProvider) {
       try {
         await auth.signInWithPopup(googleProvider);
@@ -155,25 +165,22 @@ export default function App() {
                 break;
         }
       }
-    } else {
-      // Firebase is not configured. Show an error to the user/developer.
-      setConfigError(
-        "Authentication is not configured. If you are the site owner, please set the required FIREBASE_* environment variables in your deployment settings."
-      );
     }
   };
 
-  const handleLogout = () => {
+  const handleLogoutOrReset = () => {
     if (isFirebaseConfigured && auth) {
+      // This is the real logout flow
       auth.signOut().catch((err: any) => {
           console.error("Firebase logout failed:", err);
           setError("An error occurred during sign-out.");
       });
       // onAuthStateChanged will handle clearing state
     } else {
-      // If not configured, just clear local state.
-      setUser(null);
-      clearUserData();
+      // This is the reset flow for local/guest mode
+      if (window.confirm("Are you sure you want to reset your session? This will clear your current analysis and history.")) {
+          clearUserData();
+      }
     }
   };
 
@@ -324,11 +331,11 @@ export default function App() {
               </button>
             )}
             <button
-              onClick={handleLogout}
+              onClick={handleLogoutOrReset}
               className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white font-semibold rounded-lg transition-colors text-sm"
-              aria-label="Logout"
+              aria-label={isFirebaseConfigured ? "Logout" : "Reset Session"}
             >
-              Logout
+              {isFirebaseConfigured ? 'Logout' : 'Reset Session'}
             </button>
           </div>
         </header>
