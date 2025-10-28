@@ -82,20 +82,9 @@ export default function App() {
 
   useEffect(() => {
     if (isFirebaseConfigured && auth) {
-      // First, process the potential redirect result from Google Sign-In
-      auth.getRedirectResult().catch((error: any) => {
-        // This error is expected in sandboxed environments where redirects are blocked.
-        // We can safely ignore it because the login button's handler will use a fallback.
-        if (error.code === 'auth/operation-not-supported-in-this-environment') {
-          console.warn("Firebase getRedirectResult failed: Operation not supported in this environment. This is expected in sandboxed iframes.");
-        } else {
-          console.error("Firebase redirect login failed:", error);
-          setError(`Failed to sign in with Google. Reason: ${error.message}`);
-        }
-      });
-      
       // onAuthStateChanged is the primary observer for auth state.
-      // It will fire after getRedirectResult() resolves and the user session is established.
+      // It will fire after a successful popup login, or on initial page load
+      // to check for an existing session.
       const unsubscribe = auth.onAuthStateChanged((firebaseUser: any) => {
         if (firebaseUser) {
           const appUser: User = {
@@ -140,13 +129,16 @@ export default function App() {
     setError(null);
     if (isFirebaseConfigured && auth && googleProvider) {
       try {
-        await auth.signInWithRedirect(googleProvider);
-        // The application will redirect, so no more code is needed here.
-        // The result is handled by getRedirectResult on page load.
+        // Use signInWithPopup for a more reliable web login experience, especially on deployed platforms.
+        await auth.signInWithPopup(googleProvider);
+        // The onAuthStateChanged listener will automatically handle the successful login.
       } catch (err: any) {
-        console.error("Firebase login failed:", err);
-         if (err.code === 'auth/operation-not-supported-in-this-environment') {
-            console.warn("Firebase sign-in with redirect is not supported in this sandboxed environment. Falling back to a mock user for demonstration purposes.");
+        console.error("Firebase popup login failed:", err);
+        if (err.code === 'auth/popup-closed-by-user') {
+            // User closed the popup, this is not an error we need to show.
+            return;
+        } else if (err.code === 'auth/operation-not-supported-in-this-environment') {
+            console.warn("Firebase sign-in with popup is not supported in this sandboxed environment. Falling back to a mock user for demonstration purposes.");
             setError(null); // Clear any potential error message
             const mockUser: User = {
                 uid: 'mock-user-uid',

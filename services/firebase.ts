@@ -1,18 +1,19 @@
+
 declare global {
   interface Window {
     firebase: any;
   }
 }
 
-// These values are used as fallbacks if environment variables are not set.
-// It's recommended to use environment variables for production.
+// These values MUST be set as environment variables.
+// For Netlify, you will set these in Site settings > Build & deploy > Environment.
 const firebaseConfig = {
-  apiKey: process.env.FIREBASE_API_KEY || "AIzaSyCh-r4eSkx6s3ql3AQhTOFRtm20_bHs6qo",
-  authDomain: process.env.FIREBASE_AUTH_DOMAIN || "professor-ai-app.firebaseapp.com",
-  projectId: process.env.FIREBASE_PROJECT_ID || "professor-ai-app",
-  storageBucket: process.env.FIREBASE_STORAGE_BUCKET || "professor-ai-app.firebasestorage.app",
-  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID || "273873864415",
-  appId: process.env.FIREBASE_APP_ID || "1:273873864415:web:02e4c3388b171384ee0b6a",
+  apiKey: process.env.FIREBASE_API_KEY,
+  authDomain: process.env.FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.FIREBASE_PROJECT_ID,
+  storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.FIREBASE_APP_ID,
 };
 
 // A check to see if all config values are present.
@@ -20,8 +21,8 @@ export const isFirebaseConfigured = Object.values(firebaseConfig).every(Boolean)
 
 if (!isFirebaseConfigured) {
     console.warn(
-        "Firebase configuration is incomplete or missing. Authentication will be mocked. " +
-        "Please provide your Firebase project's configuration via environment variables or directly in services/firebase.ts."
+        "Firebase configuration is incomplete. Authentication will be mocked for local development. " +
+        "For deployment on platforms like Netlify, you MUST set all FIREBASE_* environment variables."
     );
 }
 
