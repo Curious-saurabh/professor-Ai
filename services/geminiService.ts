@@ -75,11 +75,20 @@ export async function analyzeContent(contentText: string): Promise<AnalysisResul
       },
     });
 
-    const jsonText = response.text.trim();
+    let jsonText = response.text.trim();
+    
+    // The API might wrap the JSON in markdown backticks, so we clean it.
+    if (jsonText.startsWith("```json")) {
+        jsonText = jsonText.substring(7); // Remove ```json\n
+        if (jsonText.endsWith("```")) {
+            jsonText = jsonText.substring(0, jsonText.length - 3);
+        }
+    }
+    
     const parsedResult: AnalysisResult = JSON.parse(jsonText);
     return parsedResult;
   } catch (error) {
-    console.error("Gemini API call failed:", error);
+    console.error("Gemini API call failed or JSON parsing failed:", error);
     throw new Error("Failed to get a valid response from the AI model.");
   }
 }

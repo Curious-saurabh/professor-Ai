@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useEffect } from 'react';
 import { ContentInput } from './components/SyllabusInput';
 import { ResultsDisplay } from './components/ResultsDisplay';
@@ -81,6 +82,14 @@ export default function App() {
 
   useEffect(() => {
     if (isFirebaseConfigured && auth) {
+      // First, process the potential redirect result from Google Sign-In
+      auth.getRedirectResult().catch((error: any) => {
+        console.error("Firebase redirect login failed:", error);
+        setError(`Failed to sign in with Google. Reason: ${error.message}`);
+      });
+      
+      // onAuthStateChanged is the primary observer for auth state.
+      // It will fire after getRedirectResult() resolves and the user session is established.
       const unsubscribe = auth.onAuthStateChanged((firebaseUser: any) => {
         if (firebaseUser) {
           const appUser: User = {
@@ -125,11 +134,24 @@ export default function App() {
     setError(null);
     if (isFirebaseConfigured && auth && googleProvider) {
       try {
-        await auth.signInWithPopup(googleProvider);
-        // onAuthStateChanged will handle setting the user state and loading history
-      } catch (err) {
+        await auth.signInWithRedirect(googleProvider);
+        // The application will redirect, so no more code is needed here.
+        // The result is handled by getRedirectResult on page load.
+      } catch (err: any) {
         console.error("Firebase login failed:", err);
-        setError("Failed to sign in with Google. Please try again.");
+         if (err.code === 'auth/operation-not-supported-in-this-environment') {
+            console.warn("Firebase sign-in with redirect is not supported in this sandboxed environment. Falling back to a mock user for demonstration purposes.");
+            setError(null); // Clear any potential error message
+            const mockUser: User = {
+                uid: 'mock-user-uid',
+                name: 'Demo User',
+                email: 'demo@example.com',
+            };
+            setUser(mockUser);
+            loadUserHistory(mockUser.uid);
+        } else {
+            setError("Failed to sign in with Google. Please try again.");
+        }
       }
     } else {
       // MOCK LOGIN FOR DEMO
